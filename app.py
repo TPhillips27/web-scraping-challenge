@@ -22,11 +22,11 @@ def home():
 def scraper():
     mars = mongo.db.mars
     #Run scrape function
-    mar_data = scrape_mars.scrape()
+    mar_data = scrape_mars.scrape_info()
     #Update mongo database using update and upsert
-    listings.update({}, listings_data, upsert=True)
+    mars.update({}, mars_data, upsert=True)
     #Redirect to home page
-    return redirect("/", code=302)
+    return redirect("/")
 
 
 if __name__ == "__main__":
