@@ -1,39 +1,38 @@
 import pandas as pd
+from bs4 import BeautifulSoup
 import requests
 import html
 import time
-from bs4 import BeautifulSoup
+import pymongo
 from splinter import Browser
 
-executable_path = {"executable_path": "chromedriver"}
+def init_browser():
+    executable_path = {"executable_path": "./chromedriver"}
+    return Browser("chrome", **executable_path, headless=False)
 
-def scrape_info():
+def scrape():
+    browser = init_browser()
 
-    browser = Browser('chrome', **executable_path, headless=True)
-
+    # URL of page to be scraped
     url = 'https://mars.nasa.gov/news/'
 
+    # Retrieve page with the requests module
     browser.visit(url)
 
-    time.sleep(2)
-
-    soup = BeautifulSoup(browser.html,'html.parser')
+    # Create BeautifulSoup object; parse with 'html.parser'
+    soup = BeautifulSoup(browser.html, 'html.parser')
 
     results = soup.find('div', class_='list_text').a.text
+    results
+    results2 = soup.find('div', class_='article_teaser_body').text
 
-    n_para = soup.find('div', class_='article_teaser_body').text
-        
-    mars = {
-        'News_Title' : results,
-        'News_Para' : n_para,
+    mars_data = {
+    'Title' : results, 
+    'Paragraph' : results2,
     }
 
     url = 'https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars'
-
     browser.visit(url)
-
-    time.sleep(2)
-
     browser.find_by_id("full_image").click()
 
     time.sleep(2)
@@ -41,36 +40,34 @@ def scrape_info():
     browser.find_link_by_partial_text("more info").click()
 
     time.sleep(2)
+    soup = BeautifulSoup(browser.html, 'html.parser')
+    picture = soup.find('figure', class_='lede').a.img["src"]
+    picture
 
-    soup = BeautifulSoup(browser.html,'html.parser')
+    featured_image = 'https://www.jpl.nasa.gov' + picture
+    featured_image
 
-    results = soup.find('figure', class_='lede').a.img["src"]
-
-    featured_img = 'https://www.jpl.nasa.gov'+results
-
-    mars["featured_img"] = featured_img
-
+    mars_data["featured_image"] = featured_image
 
     url = 'https://space-facts.com/mars/'
 
-    m_facts = pd.read_html(url)
+    facts = pd.read_html(url)
 
-    m_clean = m_facts[0]
+    facts_cleaned = facts[1]
 
-    m_clean.columns = ["Description" , "Values"]
+    facts_cleaned.columns = ["Description" , "Mars", "Earth"]
 
-    html_table = m_clean.to_html(index=False)
+    facts_cleaned
 
-    html_table = html_table.replace('\n', '')
+    mars_table = facts_cleaned.to_html()
 
-    mars["Facts"] = html_table
+    mars_table
 
+    mars_data["Facts"] = mars_table
 
     url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
-
     browser.visit(url)
-
-    hemisphere_image_urls = []
+    hemispheres = []
 
     for i in range(4):
         
@@ -88,15 +85,14 @@ def scrape_info():
         
         hemisphere["img_url"] = img
         
-        hemisphere_image_urls.append(hemisphere)
+        hemispheres.append(hemisphere)
         
         browser.back()
         
-    hemisphere_image_urls
+    hemispheres
 
-    mars["Hemisphere_Image_URLS"] = hemisphere_image_urls
+    mars_data["Hemispheres"] = hemispheres
 
-    return mars
+    browser.quit()
 
-if __name__ == "__main__":
-    print(scrape_info()) 
+    return mars_data
